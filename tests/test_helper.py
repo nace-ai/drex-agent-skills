@@ -586,6 +586,8 @@ class TransportAndCheckTests(OfflineTestCase):
         self.assertIsNone(req.data)
         self.assertEqual(req.get_header("Authorization"), "Bearer " + SYNTHETIC_KEY)
         self.assertEqual(req.get_header("Accept"), "application/json")
+        self.assertEqual(req.get_header("X-nace-client"), drex.CLIENT_ID)
+        self.assertEqual(req.get_header("User-agent"), drex.CLIENT_ID)
         self.assertEqual(opener.open.call_args.kwargs, {"timeout": 65})
         response.read.assert_called_once_with(drex.RESPONSE_LIMIT + 1)
         proxy, redirect = self.network.call_args.args
@@ -701,6 +703,15 @@ class TransportAndCheckTests(OfflineTestCase):
             self.allow_response(raw=b"0" + b" " * 32)
             with self.assertRaisesRegex(drex.HelperError, "size limit"):
                 drex.request(SYNTHETIC_KEY, "/v1/models")
+
+
+    def test_client_id_is_valid_and_matches_plugin_version(self):
+        name, _, version = drex.CLIENT_ID.partition("/")
+        self.assertEqual(name, "drex-agent-skills")
+        self.assertRegex(drex.CLIENT_ID, r"^[A-Za-z0-9 ._@+-]+/[A-Za-z0-9 ._@+-]+$")
+        self.assertLessEqual(len(drex.CLIENT_ID), 64)
+        manifest = json.loads((Path(drex.__file__).resolve().parents[1] / ".claude-plugin/plugin.json").read_text())
+        self.assertEqual(version, manifest["version"])
 
 
 class JudgeAndResponseTests(OfflineTestCase):
