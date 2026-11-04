@@ -14,6 +14,8 @@ import urllib.error
 import urllib.request
 
 BASE_URL = "https://drex.nace.ai"
+# Attribution sent on every request; keep the version equal to .claude-plugin/plugin.json.
+CLIENT_ID = "drex-agent-skills/0.8.0"
 # Hosted limit on `state` and `questions` serialized together as compact JSON, in UTF-8 bytes.
 REQUEST_LIMIT = 4 * 1048576
 # Raw input may be indented or ASCII-escaped. The hosted limit is enforced on the compact encoding.
@@ -104,6 +106,8 @@ def request(key, path, data=None):
         "Authorization": "Bearer " + key,
         "Content-Type": "application/json",
         "Accept": "application/json",
+        "X-Nace-Client": CLIENT_ID,
+        "User-Agent": CLIENT_ID,
     })
     try:
         with opener.open(req, timeout=65) as response:
