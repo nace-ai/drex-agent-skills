@@ -175,7 +175,7 @@ class PluginTests(unittest.TestCase):
         self.assertRegex(readme, r"\A# (?:\S+ )?Drex for coding agents\n")
         self.assertRegex(readme, r"(?m)^## (?:\S+ )?Skills$")
         self.assertIsNone(re.search(r"skills/drex(?![-\w])", readme))  # no old single-skill path
-        self.assertIn("drex.nace.ai/login", readme)
+        self.assertIn("console.nace.ai/login", readme)
         self.assertIn("export DREX_API_KEY='paste-your-key-here'", readme)
         self.assertIn("claude plugin marketplace add nace-ai/drex-agent-skills", readme)
         self.assertIn("claude plugin install drex@nace-ai --config make_default=true", readme)

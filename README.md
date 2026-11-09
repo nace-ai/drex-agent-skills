@@ -7,7 +7,7 @@
 
 🌐 **New: [Drex Browser Use](https://github.com/nace-ai/drex-browser-harness-pub).** Say what you want done in a browser, and Drex Max takes the actions. One sentence filled a DoorDash cart in 16 moves, 66 seconds and $0.006 of model cost. It runs as an MCP server and CLI for Claude Code, Codex and Cursor, and as a Chrome side panel.
 
-[Drex](https://drex.nace.ai/docs) answers System One decisions: a yes or no (`noul`), one pick from a fixed set (`choice`), or a level on an ordered scale (`score`), each with calibrated probabilities. This repository teaches your coding agent to use it. The agent keeps its own model for chat, reasoning, and code. Drex only answers the typed questions the agent or your application sends.
+[Drex](https://console.nace.ai/docs) answers System One decisions: a yes or no (`noul`), one pick from a fixed set (`choice`), or a level on an ordered scale (`score`), each with calibrated probabilities. This repository teaches your coding agent to use it. The agent keeps its own model for chat, reasoning, and code. Drex only answers the typed questions the agent or your application sends.
 
 Get a Drex API key, export it once, then install the plugin or skills for your agent.
 
@@ -39,7 +39,7 @@ The skills come with two small scripts that the agent runs for you: a helper tha
 <a id="export-the-api-key"></a>
 ## 🔑 Export the API key
 
-1. **Get your API key.** Sign in at [drex.nace.ai](https://drex.nace.ai/login), open **API Keys**, create a key, and copy it.
+1. **Get your API key.** Sign in at [console.nace.ai](https://console.nace.ai/login), open **API Keys**, create a key, and copy it.
 
 2. **Set the key in your terminal.** Replace the placeholder with your key:
 
