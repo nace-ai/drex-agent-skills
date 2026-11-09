@@ -1,16 +1,31 @@
-# Drex for coding agents
+# 🧩 Drex for coding agents
 
-**New: [Drex Browser Use](https://github.com/nace-ai/drex-browser-harness-pub).** Say what you want done in a browser, and Drex Max takes the actions. One sentence filled a DoorDash cart in 16 moves, 66 seconds and $0.006 of model cost. It runs as an MCP server and CLI for Claude Code, Codex and Cursor, and as a Chrome side panel.
+<p align="center">
+<a href="https://github.com/nace-ai/drex-agent-skills/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/nace-ai/drex-agent-skills"></a>
+<a href="https://github.com/nace-ai/drex-agent-skills"><img alt="GitHub stars" src="https://img.shields.io/github/stars/nace-ai/drex-agent-skills?style=flat"></a>
+</p>
 
-[Drex](https://drex.nace.ai/docs) answers System One decisions: a yes or no (`noul`), one pick from a fixed set (`choice`), or a level on an ordered scale (`score`), each with calibrated probabilities. This repository teaches your coding agent to use it. The agent keeps its own model for chat, reasoning, and code. Drex only answers the typed questions the agent or your application sends.
+🌐 **New: [Drex Browser Use](https://github.com/nace-ai/drex-browser-harness-pub).** Say what you want done in a browser, and Drex Max takes the actions. One sentence filled a DoorDash cart in 16 moves, 66 seconds and $0.006 of model cost. It runs as an MCP server and CLI for Claude Code, Codex and Cursor, and as a Chrome side panel.
+
+[Drex](https://console.nace.ai/docs) answers System One decisions: a yes or no (`noul`), one pick from a fixed set (`choice`), or a level on an ordered scale (`score`), each with calibrated probabilities. This repository teaches your coding agent to use it. The agent keeps its own model for chat, reasoning, and code. Drex only answers the typed questions the agent or your application sends.
 
 Get a Drex API key, export it once, then install the plugin or skills for your agent.
 
-**Supported agents:** [Claude Code](#claude-code) · [OpenCode](#opencode) · [Hermes Agent](#hermes-agent) · [Codex](#codex) · [Cursor](#cursor) · [Gemini CLI](#gemini-cli) · [GitHub Copilot](#github-copilot) · [Windsurf](#windsurf) · [Cline](#cline) · [OpenClaw](#openclaw) · [Pi](#pi) · [DeepSeek Harness](#deepseek-harness) · [Other harness](#other-harness)
+🤖 **Supported agents:** [Claude Code](#claude-code) · [OpenCode](#opencode) · [Hermes Agent](#hermes-agent) · [Codex](#codex) · [Cursor](#cursor) · [Gemini CLI](#gemini-cli) · [GitHub Copilot](#github-copilot) · [Windsurf](#windsurf) · [Cline](#cline) · [OpenClaw](#openclaw) · [Pi](#pi) · [DeepSeek Harness](#deepseek-harness) · [Other harness](#other-harness)
+
+<p align="center">
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="docs/assets/agent-skills-drex-narrow-dark.svg">
+  <source media="(max-width: 600px)" srcset="docs/assets/agent-skills-drex-narrow.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agent-skills-drex-dark.svg">
+  <img alt="Your coding agent loads the Drex skills, which send typed questions to Drex" src="docs/assets/agent-skills-drex-light.svg" width="100%">
+</picture>
+</p>
 
 https://github.com/user-attachments/assets/772d46e2-7dad-4833-829e-fa92f8ada038
 
-## Skills
+<a id="skills"></a>
+## 🧰 Skills
 
 | Skill | Use it to |
 | --- | --- |
@@ -21,9 +36,10 @@ Install both. `drexify` relies on `drex-for-harness` for question design and API
 
 The skills come with two small scripts that the agent runs for you: a helper that checks your key and sends decision requests to hosted Drex, and a scanner that searches a repository for decision sites locally, without calling a model or the network. The Claude Code plugin bundles both skills and both scripts. Commands, limits, and development notes are in the [reference](docs/reference.md).
 
-## Export the API key
+<a id="export-the-api-key"></a>
+## 🔑 Export the API key
 
-1. **Get your API key.** Sign in at [drex.nace.ai](https://drex.nace.ai/login), open **API Keys**, create a key, and copy it.
+1. **Get your API key.** Sign in at [console.nace.ai](https://console.nace.ai/login), open **API Keys**, create a key, and copy it.
 
 2. **Set the key in your terminal.** Replace the placeholder with your key:
 
@@ -33,9 +49,11 @@ The skills come with two small scripts that the agent runs for you: a helper tha
 
 Run your agent from that terminal so it inherits the key. After installing, ask the agent to "check my Drex key". It verifies the key without spending credit and says what is wrong if it fails.
 
-## Install Drex for your agent
+<a id="install-drex-for-your-agent"></a>
+## 📦 Install Drex for your agent
 
-These steps were tested end to end for Claude Code (the plugin) and Cursor (personal skills). The other sections follow each agent's documented skill installer and were not run as part of this repository's release checks.
+> [!NOTE]
+> These steps were tested end to end for Claude Code (the plugin) and Cursor (personal skills). The other sections follow each agent's documented skill installer and were not run as part of this repository's release checks.
 
 ### Claude Code
 
@@ -222,7 +240,8 @@ Replace `/path/to/your-agent/skills` with the actual directory from your agent's
 
 Restart your agent after installation to load Drex. For cloud agents, configure `DREX_API_KEY` in the agent's supported environment or secrets settings.
 
-## Use it
+<a id="use-it"></a>
+## 💬 Use it
 
 Ask in plain words. The agent loads the right skill on its own.
 
@@ -242,7 +261,8 @@ What the agent does and does not do:
 - **The answering model is checked.** Drex answers a mistyped or retired model id with another model instead of an error. Generated clients compare the response's `model` with the pinned id, and the helper warns when they differ.
 - **Nothing ships without you.** The agent does not change production routing, credentials, or unrelated code without your authorization, and it reports only what it actually ran.
 
-## Make Drex the default
+<a id="make-drex-the-default"></a>
+## 🎛️ Make Drex the default
 
 In Claude Code, the plugin's `make_default` option decides it. The install command above sets it to `true`. With `false`, Drex adds capability and leaves your existing decision providers in charge. To change it, uninstall the plugin and install it again with the other value.
 
@@ -250,14 +270,16 @@ In other agents, installing the skills adds capability only. To make Drex the de
 
 > For System One decisions, use Drex by default and load the drex-for-harness skill. Do not silently switch to another decision provider if Drex is unavailable.
 
-## Data and security
+<a id="data-and-security"></a>
+## 🔒 Data and security
 
 - **The scan stays local.** It reads files and writes only the map and report paths you give it.
 - **Drex sees only what is sent.** A decision request carries a `state` and its questions. The agent puts in it only what the task needs, and the skill tells it not to send private evaluation data as probes.
 - **The key stays in the environment.** Never paste it into chat or source code. The Claude plugin's session hook only adds text to the agent's context. It reads no files or credentials and makes no network calls.
 - **Self-hosted Drex needs no key**, and the hosted key is never sent to it.
 
-## Troubleshooting
+<a id="troubleshooting"></a>
+## 🛠️ Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
@@ -271,7 +293,8 @@ In other agents, installing the skills adds capability only. To make Drex the de
 | Claude Code says `Not logged in · Please run /login` | Run `/login` in Claude Code, then install again. |
 | The agent does not use Drex | Restart the agent after installing, check that the skill folders are where the agent looks for skills, or ask it to use the drex-for-harness skill by name. |
 
-## Update and uninstall
+<a id="update-and-uninstall"></a>
+## 🔄 Update and uninstall
 
 Claude Code:
 
@@ -283,7 +306,8 @@ claude plugin uninstall drex@nace-ai
 
 For agents installed from a clone, update with `git -C "$HOME/drex-agent-skills" pull`. To uninstall, delete the two `drex-for-harness` and `drexify` links from the agent's skill folder, then delete the clone. Restart the agent after either change.
 
-## Self-hosted Drex
+<a id="self-hosted-drex"></a>
+## 🏠 Self-hosted Drex
 
 To run the open-source [Drex](https://github.com/nace-ai/drex-decision-models) models yourself instead of using the hosted API, no `DREX_API_KEY` is needed:
 
@@ -297,10 +321,12 @@ To run the open-source [Drex](https://github.com/nace-ai/drex-decision-models) m
 
 Self-hosted requests use the same `POST /v1/systemone` format as the hosted API, with no `Authorization` header. The bundled helper only talks to hosted Drex, so your agent uses an ordinary HTTP client for your server. Keep the server on `127.0.0.1` unless you add authentication in front of it, and never send a hosted API key to it. See the repository for hardware requirements and license terms.
 
-## Develop
+<a id="develop"></a>
+## 🧪 Develop
 
 The [reference](docs/reference.md) covers the offline tests, the opt-in Claude Code install test, plugin validation, the scan's recall eval, and the repository layout.
 
-## License
+<a id="license"></a>
+## ⚖️ License
 
 [MIT](LICENSE)
