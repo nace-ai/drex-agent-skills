@@ -4,7 +4,7 @@ The skills run these scripts for the agent. This page is for people who want to 
 
 ## The helper
 
-`scripts/drex.py` needs Python 3.9 or newer and nothing else. It only talks to `https://drex.nace.ai`, ignores proxy settings, refuses redirects, and never prints, saves, or forwards the key. It reads the key from `DREX_API_KEY`.
+`skills/drex-for-harness/scripts/drex.py` needs Python 3.9 or newer and nothing else. It is bundled inside the skill so directory-only installers such as Hermes include it. The repository and Claude plugin retain `scripts/drex.py` as a small Python entry point that runs that single implementation, including on Windows checkouts without symlink support. It only talks to `https://drex.nace.ai`, ignores proxy settings, refuses redirects, and never prints, saves, or forwards the key. It reads the key from `DREX_API_KEY`.
 
 | Command | What it does | Cost |
 | --- | --- | --- |
@@ -69,7 +69,8 @@ Layout:
 | `skills/drex-for-harness/SKILL.md` | How to design, call, and verify Drex decisions |
 | `skills/drexify/SKILL.md` | How to scan, count, report, and migrate decision sites |
 | `skills/drexify/scripts/drexify.py` | The scanner and report checker |
-| `scripts/drex.py` | The hosted Drex helper |
+| `skills/drex-for-harness/scripts/drex.py` | The hosted Drex helper, included in standalone skill installs |
+| `scripts/drex.py` | Compatibility entry point for repository and Claude plugin callers |
 | `scripts/session-context.sh`, `hooks/hooks.json` | The Claude Code hook that reports the `make_default` choice to the agent |
 | `.claude-plugin/` | The Claude Code plugin and marketplace manifests |
 | `evals/drexify/` | The recall eval and its answer key |
