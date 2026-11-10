@@ -1,7 +1,7 @@
 """Offline, standard-library tests for scripts/drex.py.
 
 Only synthetic credentials are used. Network and agent subprocesses are blocked
-by default; the only real subprocesses execute Python's local CLI help. Each
+by default; the only real subprocesses execute local Python help or a synthetic environment check. Each
 case gets an empty temporary HOME/cwd and an isolated environment. Regression
 cases cover previously discovered malformed-response bugs.
 Run: python3 -B -m unittest discover -s tests -p test_helper.py -v
@@ -15,6 +15,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -28,13 +29,14 @@ import warnings
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "drex.py"
+BUNDLED_SCRIPT = ROOT / "skills/drex-for-harness/scripts/drex.py"
 SYNTHETIC_KEY = "nace_sk_" + "A" * 43
 PRIVATE_INPUT = "SYNTHETIC_PRIVATE_INPUT_DO_NOT_LOG"
 PRIVATE_SERVER = "SYNTHETIC_PRIVATE_SERVER_DO_NOT_LOG"
 REAL_SUBPROCESS_RUN = subprocess.run
 
 # Import without creating scripts/__pycache__ (this task owns only this file).
-_spec = importlib.util.spec_from_file_location("drex_helper_under_test", SCRIPT)
+_spec = importlib.util.spec_from_file_location("drex_helper_under_test", BUNDLED_SCRIPT)
 drex = importlib.util.module_from_spec(_spec)
 with mock.patch.object(sys, "dont_write_bytecode", True):
     _spec.loader.exec_module(drex)
@@ -124,14 +126,14 @@ class OfflineTestCase(unittest.TestCase):
         self.addCleanup(patcher.stop)
         return value
 
-    def invoke(self, argv, body=None, raw=None):
+    def invoke(self, argv, body=None, raw=None, helper=None):
         if body is not None:
             raw = json.dumps(body).encode("utf-8")
         if raw is not None:
             self.stdin.buffer = io.BytesIO(raw)
         stdout, stderr = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = drex.main(argv)
+            code = (helper or drex).main(argv)
         return code, stdout.getvalue(), stderr.getvalue()
 
     def allow_response(self, result=None, raw=None, error=None):
@@ -157,6 +159,49 @@ class OfflineTestCase(unittest.TestCase):
         self.assertTrue(stderr.startswith("Drex helper: "), stderr)
         self.assert_private(stderr, *more)
         return stderr
+
+
+class SkillInstallTests(OfflineTestCase):
+    def test_repository_entry_point_and_bundle_are_regular_python_files(self):
+        # A core.symlinks=false checkout must still have runnable Python at both paths.
+        for script in (SCRIPT, BUNDLED_SCRIPT):
+            self.assertFalse(script.is_symlink())
+            compile(script.read_text(encoding="utf-8"), str(script), "exec")
+
+    def test_directory_only_install_can_check_models_and_judge(self):
+        # Model Hermes' installation boundary: no repo root, plugin, or external links.
+        target = self.folder / "hermes home/skills/drex-for-harness"
+        shutil.copytree(ROOT / "skills/drex-for-harness", target, symlinks=True,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        self.assertFalse(any(path.is_symlink() for path in target.rglob("*")))
+        script = target / "scripts/drex.py"
+        self.assertTrue(script.is_file())
+        spec = importlib.util.spec_from_file_location("installed_drex_helper", script)
+        installed = importlib.util.module_from_spec(spec)
+        with mock.patch.object(sys, "dont_write_bytecode", True):
+            spec.loader.exec_module(installed)
+        self.assertEqual(Path(installed.__file__).resolve(), script.resolve())
+        os.environ["DREX_API_KEY"] = SYNTHETIC_KEY
+
+        self.allow_response({"models": []})
+        code, stdout, stderr = self.invoke(["check", "--no-input"], helper=installed)
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertIn("authentication verified", stdout)
+        self.assert_private(stdout)
+        code, stdout, stderr = self.invoke(["models", "--no-input"], helper=installed)
+        self.assertEqual((code, stdout, stderr), (0, "", ""))
+
+        opener, _ = self.allow_response(valid_response())
+        code, stdout, stderr = self.invoke(["judge"], body=valid_body(), helper=installed)
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(json.loads(stdout), valid_response())  # choice, score, and noul
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, "https://drex.nace.ai/v1/systemone")
+        self.assertEqual(json.loads(request.data), valid_body())
+        self.assertEqual(request.get_header("X-nace-client"), installed.CLIENT_ID)
+        self.assertNotIn(SYNTHETIC_KEY, stdout)
+        self.prompt.assert_not_called()
+        self.child.assert_not_called()
 
 
 class CredentialTests(OfflineTestCase):
@@ -283,6 +328,11 @@ class CredentialTests(OfflineTestCase):
 
 
 class RunTests(OfflineTestCase):
+    def setUp(self):
+        super().setUp()
+        self.putenv = self.start_patch(mock.patch.object(os, "putenv", wraps=os.putenv))
+        self.unsetenv = self.start_patch(mock.patch.object(os, "unsetenv", wraps=os.unsetenv))
+
     def test_run_passes_key_only_in_child_environment_and_writes_nothing(self):
         os.environ["DREX_API_KEY"] = SYNTHETIC_KEY
         os.environ["SYNTHETIC_PRESERVED"] = "preserved"
@@ -294,10 +344,10 @@ class RunTests(OfflineTestCase):
                 mock.patch.object(Path, "open", side_effect=AssertionError("No file writes")):
             code, stdout, stderr = self.invoke(["run", "--"] + command)
         self.assertEqual((code, stdout, stderr), (23, "", ""))
-        self.child.assert_called_once_with(command, env=before)
-        child_env = self.child.call_args.kwargs["env"]
-        self.assertIsNot(child_env, os.environ)
-        self.assertEqual(child_env["DREX_API_KEY"], SYNTHETIC_KEY)
+        self.child.assert_called_once_with(command)
+        self.assertEqual(self.putenv.call_args_list[-2:], [
+            mock.call("DREX_API_KEY", SYNTHETIC_KEY), mock.call("DREX_API_KEY", SYNTHETIC_KEY),
+        ])
         self.assertNotIn(SYNTHETIC_KEY, repr(self.child.call_args.args))
         self.assertEqual(dict(os.environ), before)
         self.assertEqual(list(self.folder.iterdir()), [])
@@ -311,7 +361,7 @@ class RunTests(OfflineTestCase):
         code, _, _ = self.invoke(["run", "--", "synthetic-agent"])
         self.assertEqual(code, 143)
 
-    def test_run_prompted_key_only_reaches_child_not_parent_or_disk(self):
+    def test_run_prompted_key_is_removed_after_child_and_not_saved(self):
         self.stdin.isatty.return_value = True
         self.prompt.side_effect = None
         self.prompt.return_value = SYNTHETIC_KEY
@@ -319,9 +369,52 @@ class RunTests(OfflineTestCase):
         self.child.return_value.returncode = 0
         self.assertEqual(self.invoke(["run", "synthetic-agent"]), (0, "", ""))
         self.assertEqual(self.child.call_args.args, (["synthetic-agent"],))
-        self.assertEqual(self.child.call_args.kwargs["env"]["DREX_API_KEY"], SYNTHETIC_KEY)
+        self.assertEqual(self.child.call_args.kwargs, {})
+        self.putenv.assert_called_once_with("DREX_API_KEY", SYNTHETIC_KEY)
+        self.unsetenv.assert_called_once_with("DREX_API_KEY")
         self.assertNotIn("DREX_API_KEY", os.environ)
         self.assertEqual(list(self.folder.iterdir()), [])
+
+    def test_run_real_python_child_inherits_normalized_key_and_unrelated_environment(self):
+        os.environ["DREX_API_KEY"] = " " + SYNTHETIC_KEY + "\n"
+        os.environ["SYNTHETIC_PRESERVED"] = "preserved"
+        before = dict(os.environ)
+        self.child.side_effect = lambda command: REAL_SUBPROCESS_RUN(
+            command, capture_output=True, text=True, timeout=5,
+        )
+        command = [sys.executable, "-B", "-c", (
+            "import os; "
+            "assert os.environ['DREX_API_KEY'] == 'nace_sk_' + 'A' * 43; "
+            "assert os.environ['SYNTHETIC_PRESERVED'] == 'preserved'"
+        )]
+        self.assertEqual(self.invoke(["run", "--"] + command), (0, "", ""))
+        self.assertEqual(dict(os.environ), before)
+        self.assertEqual(self.putenv.call_args_list[-1], mock.call("DREX_API_KEY", before["DREX_API_KEY"]))
+        self.assertEqual(list(self.folder.iterdir()), [])
+
+    def test_run_restores_native_environment_on_launch_errors_and_interrupts(self):
+        for previous in (None, " " + SYNTHETIC_KEY + "\n"):
+            for error in (OSError(), KeyboardInterrupt()):
+                with self.subTest(previous=previous, error=type(error).__name__):
+                    if previous is not None:
+                        os.environ["DREX_API_KEY"] = previous
+                    else:
+                        os.environ.pop("DREX_API_KEY", None)
+                        self.stdin.isatty.return_value = True
+                        self.prompt.side_effect = None
+                        self.prompt.return_value = SYNTHETIC_KEY
+                    self.putenv.reset_mock()
+                    self.unsetenv.reset_mock()
+                    self.child.side_effect = error
+                    code, stdout, stderr = self.invoke(["run", "synthetic-agent"])
+                    self.assertEqual(code, 130 if isinstance(error, KeyboardInterrupt) else 1)
+                    self.assertEqual(stdout, "")
+                    self.assert_private(stderr)
+                    self.assertEqual(os.environ.get("DREX_API_KEY"), previous)
+                    if previous is None:
+                        self.unsetenv.assert_called_once_with("DREX_API_KEY")
+                    else:
+                        self.assertEqual(self.putenv.call_args_list[-1], mock.call("DREX_API_KEY", previous))
 
     def test_missing_command_fails_before_credentials(self):
         for argv in (["run"], ["run", "--"]):
@@ -710,7 +803,7 @@ class TransportAndCheckTests(OfflineTestCase):
         self.assertEqual(name, "drex-agent-skills")
         self.assertRegex(drex.CLIENT_ID, r"^[A-Za-z0-9 ._@+-]+/[A-Za-z0-9 ._@+-]+$")
         self.assertLessEqual(len(drex.CLIENT_ID), 64)
-        manifest = json.loads((Path(drex.__file__).resolve().parents[1] / ".claude-plugin/plugin.json").read_text())
+        manifest = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())
         self.assertEqual(version, manifest["version"])
 
 

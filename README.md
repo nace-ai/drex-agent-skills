@@ -53,7 +53,7 @@ Run your agent from that terminal so it inherits the key. After installing, ask 
 ## 📦 Install Drex for your agent
 
 > [!NOTE]
-> These steps were tested end to end for Claude Code (the plugin) and Cursor (personal skills). The other sections follow each agent's documented skill installer and were not run as part of this repository's release checks.
+> These steps were tested end to end for Claude Code (the plugin) and Cursor (personal skills). Hermes Agent v0.23.0 was also tested with a skill install and a hosted typed decision; its setup below accounts for directory-only installs and gateway credentials. The other sections follow each agent's documented skill installer and were not run as part of this repository's release checks.
 
 ### Claude Code
 
@@ -85,15 +85,30 @@ Restart OpenCode after installation to load Drex.
 
 ### Hermes Agent
 
-Use [Hermes' native installer](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills):
+Use [Hermes' native installer](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills). For Hermes Agent v0.23.0, run these in the same Hermes home/profile you use for chat. The paths below assume the default profile (`~/.hermes`, or your custom root). Check `hermes profile list` first: after `hermes profile use X`, the CLI follows profile X and installs into `<root>/profiles/X/`. For that case, set `drex_hermes_home` to that profile directory as shown in the comment below. If `HERMES_HOME` already points directly at a profile directory, use that value. This shell variable is only for file checks and locating configuration; it does not select a Hermes profile.
 
 ```bash
-hermes skills install nace-ai/drex-agent-skills/skills/drex-for-harness
-hermes skills install nace-ai/drex-agent-skills/skills/drexify
+hermes profile list
+drex_hermes_home="${HERMES_HOME:-$HOME/.hermes}"
+# For active profile X under the default root, use instead:
+# drex_hermes_home="$HOME/.hermes/profiles/X"
+hermes skills install nace-ai/drex-agent-skills/skills/drex-for-harness --yes
+hermes skills install nace-ai/drex-agent-skills/skills/drexify --yes
 hermes skills list
+test -f "$drex_hermes_home/skills/drex-for-harness/scripts/drex.py"
+test -f "$drex_hermes_home/skills/drexify/scripts/drexify.py"
 ```
 
-For hosted calls, Hermes' isolated terminal tools need [credential passthrough](https://hermes-agent.nousresearch.com/docs/user-guide/security#environment-variable-passthrough) in `~/.hermes/config.yaml`:
+`--yes` is required for scripted/non-TTY installs: without it, the confirmation can say `Installation cancelled.` and still exit 0. Check that both skills appear as `enabled` and both file checks succeed. Hermes installs each skill directory only; the decision helper is bundled inside `drex-for-harness/scripts/`, so no separate checkout is needed. If upgrading an older install that lacks it, run `hermes skills update drex-for-harness` and repeat the checks.
+
+Install enables a new skill automatically. To enable a previously disabled skill, run the interactive picker and select both Drex skills:
+
+```bash
+hermes skills config
+hermes skills list --enabled-only
+```
+
+For hosted calls, Hermes' isolated terminal tools need [credential passthrough](https://hermes-agent.nousresearch.com/docs/user-guide/security#environment-variable-passthrough) in `$drex_hermes_home/config.yaml` (default `~/.hermes/config.yaml`; profile X: `<root>/profiles/X/config.yaml`). This is `$HERMES_HOME/config.yaml` inside the running Hermes process after profile resolution. Merge this into the existing configuration:
 
 ```yaml
 terminal:
@@ -101,7 +116,35 @@ terminal:
     - DREX_API_KEY
 ```
 
-Restart Hermes after installation to load Drex and apply credential passthrough.
+Provision `DREX_API_KEY` through your secret manager or put it in `$drex_hermes_home/.env` (profile X: `<root>/profiles/X/.env`), outside this repository. The helper reads `DREX_API_KEY`, not `NACE_API_KEY`; if your secret is named `NACE_API_KEY`, provision that value as `DREX_API_KEY`. Never paste the value into chat or source code.
+
+An already running, auto-started Hermes gateway keeps the environment it started with. Exporting a key in a later shell that runs `hermes chat` does not update the gateway. Put the key in `$drex_hermes_home/.env` for gateway startup, or restart the gateway from the shell that has the exported key. After changing credentials or passthrough, restart it (when no turns are active):
+
+```bash
+hermes gateway restart --detach
+```
+
+Restart Hermes after installation to load Drex and apply credential passthrough. In a fresh conversation, check authentication through the installed helper without an inference charge:
+
+```bash
+hermes chat -q 'Load drex-for-harness and check my Drex key using the bundled helper with check --no-input. Do not print the key.'
+```
+
+To check a typed decision (billable), use a synthetic ticket:
+
+```bash
+hermes chat -q 'Use drex-for-harness and its bundled helper judge command with model drex-v2.0. Classify this synthetic ticket: I was charged twice; please refund one charge. Ask a choice question with billing, technical, sales labels and a noul question asking whether a refund is requested. Report the served model, request_id, and answers.'
+```
+
+To disable while keeping the files, run `hermes skills config`, deselect both Drex skills, and verify with `hermes skills list`. Start a fresh conversation after changing the selection. To remove them instead:
+
+```bash
+hermes skills uninstall drex-for-harness --yes
+hermes skills uninstall drexify --yes
+hermes skills list
+```
+
+**MCP:** this repository's Hermes path is skill-only. It ships no MCP server or `mcp_servers` configuration for Drex typed decisions. The Drex Browser Use MCP server linked above is a separate project.
 
 ### Codex
 
